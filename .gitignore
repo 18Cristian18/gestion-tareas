@@ -1,3 +1,4 @@
 
 node_modules/
 database/tareas.db
+server-backup.js
