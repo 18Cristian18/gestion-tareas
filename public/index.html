@@ -1,0 +1,93 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de tareas en tiempo real</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 850px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f3f7fb;
+            color: #263445;
+        }
+
+        h1 {
+            color: #10243a;
+        }
+
+        #conexion {
+            padding: 12px;
+            border-radius: 8px;
+            background: #fff3cd;
+        }
+
+        #eventos {
+            padding: 0;
+            list-style: none;
+        }
+
+        #eventos li {
+            background: white;
+            border-left: 5px solid #12b8a6;
+            padding: 14px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            overflow-wrap: anywhere;
+        }
+    </style>
+</head>
+<body>
+    <h1>Monitor de tareas</h1>
+
+    <p>Esta página muestra los cambios que recibe el servidor en tiempo real.</p>
+
+    <p id="conexion">Conectando con el servidor...</p>
+
+    <h2>Notificaciones recibidas</h2>
+    <ul id="eventos"></ul>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const conexion = document.getElementById('conexion');
+        const eventos = document.getElementById('eventos');
+
+        function mostrarEvento(mensaje, datos) {
+            const elemento = document.createElement('li');
+            elemento.textContent =
+                new Date().toLocaleTimeString() +
+                ' - ' + mensaje + ': ' +
+                JSON.stringify(datos);
+
+            eventos.prepend(elemento);
+        }
+
+        socket.on('connect', () => {
+            conexion.textContent = 'Conectado al servidor en tiempo real';
+            conexion.style.background = '#d1fae5';
+        });
+
+        socket.on('disconnect', () => {
+            conexion.textContent = 'Desconectado del servidor';
+            conexion.style.background = '#fee2e2';
+        });
+
+        socket.on('tarea:creada', (tarea) => {
+            mostrarEvento('Tarea creada', tarea);
+        });
+
+        socket.on('tarea:actualizada', (tarea) => {
+            mostrarEvento('Tarea actualizada', tarea);
+        });
+
+        socket.on('tarea:eliminada', (datos) => {
+            mostrarEvento('Tarea eliminada', datos);
+        });
+    </script>
+</body>
+</html>
