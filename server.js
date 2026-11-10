@@ -1,5 +1,6 @@
 const express = require('express');
 const db = require('./database/db');
+const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
@@ -21,6 +22,7 @@ io.on('connection', (socket) => {
 });
 
 app.use(express.json());
+app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* Exportar las tareas a un archivo JSON */
