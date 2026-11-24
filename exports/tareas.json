@@ -1,8 +1,0 @@
-[
-  {
-    "id": 1,
-    "titulo": "Tarea persistente",
-    "descripcion": "Comprobar que SQLite guarda los datos",
-    "estado": "pendiente"
-  }
-]

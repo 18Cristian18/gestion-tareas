@@ -2,3 +2,8 @@
 node_modules/
 database/tareas.db
 server-backup.js
+respaldos/
+.env
+.env.*
+!.env.example
+exports/tareas.json

@@ -1,16 +1,13 @@
-const CACHE_NAME = 'gestion-tareas-v3';
+
+const CACHE_NAME = 'gestion-tareas-v4';
 
 const ARCHIVOS_CACHE = [
   '/',
   '/index.html',
-  '/manifest.webmanifest',
-  '/icon-512.png',
-  '/favicon.ico',
-  '/assets/index-DLK-V5s6.css',
-  '/assets/index-DCkf1rL9.js'
+  '/manifest.webmanifest'
 ];
 
-// Instalar y guardar los archivos necesarios
+// Instalar y guardar los archivos principales
 self.addEventListener('install', (evento) => {
   evento.waitUntil(
     caches.open(CACHE_NAME)
@@ -35,54 +32,71 @@ self.addEventListener('activate', (evento) => {
   self.clients.claim();
 });
 
-// Recuperar primero los archivos guardados
+// Gestionar las solicitudes
 self.addEventListener('fetch', (evento) => {
-  if (evento.request.method !== 'GET') {
+  const solicitud = evento.request;
+
+  if (solicitud.method !== 'GET') {
     return;
   }
 
-  const url = new URL(evento.request.url);
+  const url = new URL(solicitud.url);
 
-  // No interceptar solicitudes de otros servidores, como la API
-  if (url.origin !== self.location.origin) {
+  // No almacenar solicitudes externas, API ni Socket.IO
+  if (
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/socket.io/')
+  ) {
+    return;
+  }
+
+  // Navegación: primero intentar obtener la versión actual
+  if (solicitud.mode === 'navigate') {
+    evento.respondWith(
+      fetch(solicitud)
+        .then((respuesta) => respuesta)
+        .catch(async () => {
+          const pagina = await caches.match('/index.html');
+
+          return pagina || new Response(
+            'Aplicación no disponible sin conexión',
+            { status: 503 }
+          );
+        })
+    );
+
+    return;
+  }
+
+  // Archivos estáticos: utilizar caché cuando estén disponibles
+  const esArchivoEstatico =
+    url.pathname.startsWith('/assets/') ||
+    url.pathname === '/manifest.webmanifest' ||
+    url.pathname.startsWith('/icon-') ||
+    url.pathname === '/favicon.ico';
+
+  if (!esArchivoEstatico) {
     return;
   }
 
   evento.respondWith(
-    caches.match(evento.request, {
-  ignoreSearch: true,
-  ignoreVary: true
-})
-      .then((recursoGuardado) => {
-        if (recursoGuardado) {
-          return recursoGuardado;
+    caches.match(solicitud).then((recursoGuardado) => {
+      if (recursoGuardado) {
+        return recursoGuardado;
+      }
+
+      return fetch(solicitud).then((respuesta) => {
+        if (respuesta.ok) {
+          const copia = respuesta.clone();
+
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(solicitud, copia);
+          });
         }
 
-        return fetch(evento.request)
-          .then((respuesta) => {
-            if (respuesta.ok) {
-              const copia = respuesta.clone();
-
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(evento.request, copia);
-              });
-            }
-
-            return respuesta;
-          })
-          .catch(async () => {
-            if (evento.request.mode === 'navigate') {
-              const pagina = await caches.match('/index.html');
-              if (pagina) return pagina;
-            }
-
-            return new Response('Recurso no disponible sin conexion', {
-              status: 503,
-              headers: {
-                'Content-Type': 'text/plain; charset=utf-8'
-              }
-            });
-          });
-      })
+        return respuesta;
+      });
+    })
   );
 });
