@@ -9,11 +9,42 @@ import {
     eliminarTarea
 } from '../services/tareaService';
 
+import { socket } from '../services/socketService';
+
 export const useTareaStore = defineStore('tareas', () => {
     const tareas = ref([]);
     const cargando = ref(false);
     const error = ref('');
     const mensaje = ref('');
+
+    // Evitar registrar varias veces los mismos eventos
+    if (!socket.hasListeners('tarea:creada')) {
+        socket.on('tarea:creada', (nuevaTarea) => {
+            const existe = tareas.value.some(
+                tarea => Number(tarea.id) === Number(nuevaTarea.id)
+            );
+
+            if (!existe) {
+                tareas.value.push(nuevaTarea);
+            }
+        });
+
+        socket.on('tarea:actualizada', (tareaActualizada) => {
+            const indice = tareas.value.findIndex(
+                tarea => Number(tarea.id) === Number(tareaActualizada.id)
+            );
+
+            if (indice !== -1) {
+                tareas.value[indice] = tareaActualizada;
+            }
+        });
+
+        socket.on('tarea:eliminada', ({ id }) => {
+            tareas.value = tareas.value.filter(
+                tarea => Number(tarea.id) !== Number(id)
+            );
+        });
+    }
 
     // Consultar tareas
     async function cargarTareas() {
@@ -36,7 +67,15 @@ export const useTareaStore = defineStore('tareas', () => {
 
         try {
             const nuevaTarea = await crearTarea(datos);
-            tareas.value.push(nuevaTarea);
+
+            const existe = tareas.value.some(
+                tarea => Number(tarea.id) === Number(nuevaTarea.id)
+            );
+
+            if (!existe) {
+                tareas.value.push(nuevaTarea);
+            }
+
             mensaje.value = 'Tarea creada correctamente';
             return true;
         } catch (err) {
@@ -54,7 +93,7 @@ export const useTareaStore = defineStore('tareas', () => {
             const tareaActualizada = await actualizarTarea(id, datos);
 
             const indice = tareas.value.findIndex(
-                tarea => tarea.id === id
+                tarea => Number(tarea.id) === Number(id)
             );
 
             if (indice !== -1) {
@@ -78,7 +117,7 @@ export const useTareaStore = defineStore('tareas', () => {
             await eliminarTarea(id);
 
             tareas.value = tareas.value.filter(
-                tarea => tarea.id !== id
+                tarea => Number(tarea.id) !== Number(id)
             );
 
             mensaje.value = 'Tarea eliminada correctamente';
